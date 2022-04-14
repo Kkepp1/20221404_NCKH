@@ -26,5 +26,7 @@ nckh_mpu6050\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash.h
 nckh_mpu6050\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h
 nckh_mpu6050\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_i2c.h
 nckh_mpu6050\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
+nckh_mpu6050\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h
+nckh_mpu6050\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
 nckh_mpu6050\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
 nckh_mpu6050\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
