@@ -74,7 +74,7 @@ float Ki ;//1.5
 float Kd  ;//2
 float pTerm, iTerm, dTerm, integrated_error, last_error, error;
 float AngleNow;
-float SP = 189.8;
+float SP = 178;
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c2;
 
@@ -223,12 +223,18 @@ int main(void)
 	MPU6050_Init();
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);	
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-	HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_SET);//A1
-	HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_RESET);//B1
-	HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);//A2
-	HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);//B2	
   while (1)
   {
+		//for(int i=0;i<999;i++){
+//										HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_SET);//A1
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_RESET);//B1
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);//A2
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);//B2
+//					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,i);
+//					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,i);
+//			HAL_Delay(10);
+//		}
+
 			MPU6050_Read_Accel();
 	    MPU6050_Read_Gyro();
 		
@@ -237,9 +243,6 @@ int main(void)
       time_1 = time_0 ;
 			pitch = (atan2f((- Ax), Az)+pi)*180/pi;
 			AngleNow = Kalman_getAngle(pitch,Gy,timeCurrent);
-//							__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,900);
-//					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,900);
-//		  HAL_Delay(100);
 		 PID_angle_u();
 		if(u<0) // angle>180
 				{
@@ -248,20 +251,20 @@ int main(void)
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_RESET);//B1
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);//A2
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);//B2
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u+115);
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u+115);
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u+100);
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u+100);
 				}
 				else
 				{
-			
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_RESET);//A1
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_SET);//B1
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_RESET);//A2
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_SET);//B2
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u+110);
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u+110);
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u+100);
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u+100);
 					
 				}
+				//HAL_Delay(1);
 				
   }
   /* USER CODE END 3 */
