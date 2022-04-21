@@ -1,22 +1,3 @@
-/* USER CODE BEGIN Header */
-/**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; Copyright (c) 2022 STMicroelectronics.
-  * All rights reserved.</center></h2>
-  *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
-  *
-  ******************************************************************************
-  */
-/* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stdio.h"
@@ -68,40 +49,28 @@ float timeCurrent=0.0;
 float AngleNow; 
 
 // -----------------pid----------------------------
+float SP = 180;
 float  u;
-float Kp ;//5.5
-float Ki ;//1.5
-float Kd  ;//2
+// 200 30 1
+float Kp=195 ;//5.5 175
+float Ki=20 ;//1.5
+float Kd =1;//2
 float pTerm, iTerm, dTerm, integrated_error, last_error, error;
 float AngleNow;
-float SP = 178;
+int first_Time=0;
+int test=0;
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c2;
 
 TIM_HandleTypeDef htim2;
-
-/* USER CODE BEGIN PV */
-
-/* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_TIM2_Init(void);
-/* USER CODE BEGIN PFP */
 
-/* USER CODE END PFP */
-
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
 //-------------------------------------------function---------------------
-//void MPU6050_Init(void);
-//void MPU6050_Read_Accel(void);
-//void MPU6050_Read_Gyro (void);
-
 void MPU6050_Init(void)
 {
   uint8_t check, Data;
@@ -183,16 +152,13 @@ float Kalman_getAngle( float newAngle, float newRate, float dt) {
 };
 void PID_angle_u(void)
 	{
-Kp=175;		//50	20
-Ki=0; 	//8.7	18.5
-Kd=0;		//0.15	0.1
+//Kp=175;		//50	20
+//Ki=0; 	//8.7	18.5
+//Kd=0;		//0.15	0.1
 
 	 error= SP - AngleNow;  // 180 = level
 
-  pTerm = Kp* error;
-//  integrated_error += error;
-//  iTerm = Ki*integrated_error;
-//  dTerm = Kd*(error - last_error);
+pTerm = Kp* error;
 iTerm = Ki * (error + last_error);
 dTerm = Kd * (error - last_error);
   last_error = error;
@@ -200,7 +166,7 @@ dTerm = Kd * (error - last_error);
 	//i = u;	
  if ( u > 999 ) {
  u = 999;}
- else if ( u< -999 ) u= 999 ;		
+ else if ( u< -999 ) u= -999 ;		
 	
 	}
 /**
@@ -220,21 +186,23 @@ int main(void)
   MX_I2C2_Init();
   MX_TIM2_Init();
 
+	HAL_Delay(100);
 	MPU6050_Init();
+	//wait for mpu 6050 init
+	HAL_Delay(100);
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);	
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
   while (1)
   {
-		//for(int i=0;i<999;i++){
-//										HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_SET);//A1
-//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_RESET);//B1
-//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);//A2
-//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);//B2
-//					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,i);
-//					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,i);
-//			HAL_Delay(10);
-//		}
-
+			//wait for fire read mpu6050
+			if(first_Time==0){
+				HAL_Delay(100);
+				first_Time++;
+			}
+//			if(test<1000){
+//				SP=176;
+//			} else SP=178;
+			//Read mpu
 			MPU6050_Read_Accel();
 	    MPU6050_Read_Gyro();
 		
@@ -243,6 +211,7 @@ int main(void)
       time_1 = time_0 ;
 			pitch = (atan2f((- Ax), Az)+pi)*180/pi;
 			AngleNow = Kalman_getAngle(pitch,Gy,timeCurrent);
+			//pid angle
 		 PID_angle_u();
 		if(u<0) // angle>180
 				{
@@ -251,8 +220,8 @@ int main(void)
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_RESET);//B1
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);//A2
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);//B2
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u+100);
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u+100);
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u+95);//98
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u+100);//100
 				}
 				else
 				{
@@ -260,11 +229,11 @@ int main(void)
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_SET);//B1
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_RESET);//A2
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_SET);//B2
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u+100);
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u+95);
 					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u+100);
 					
 				}
-				//HAL_Delay(1);
+//				test++;
 				
   }
   /* USER CODE END 3 */
