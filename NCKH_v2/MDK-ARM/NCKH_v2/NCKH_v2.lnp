@@ -1,0 +1,24 @@
+--cpu Cortex-M3
+"nckh_v2\startup_stm32f103xb.o"
+"nckh_v2\main.o"
+"nckh_v2\stm32f1xx_it.o"
+"nckh_v2\stm32f1xx_hal_msp.o"
+"nckh_v2\stm32f1xx_hal_gpio_ex.o"
+"nckh_v2\stm32f1xx_hal_i2c.o"
+"nckh_v2\stm32f1xx_hal.o"
+"nckh_v2\stm32f1xx_hal_rcc.o"
+"nckh_v2\stm32f1xx_hal_rcc_ex.o"
+"nckh_v2\stm32f1xx_hal_gpio.o"
+"nckh_v2\stm32f1xx_hal_dma.o"
+"nckh_v2\stm32f1xx_hal_cortex.o"
+"nckh_v2\stm32f1xx_hal_pwr.o"
+"nckh_v2\stm32f1xx_hal_flash.o"
+"nckh_v2\stm32f1xx_hal_flash_ex.o"
+"nckh_v2\stm32f1xx_hal_exti.o"
+"nckh_v2\stm32f1xx_hal_tim.o"
+"nckh_v2\stm32f1xx_hal_tim_ex.o"
+"nckh_v2\system_stm32f1xx.o"
+--strict --scatter "NCKH_v2\NCKH_v2.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "NCKH_v2.map" -o NCKH_v2\NCKH_v2.axf

@@ -188,17 +188,12 @@
         <Ww>
           <count>7</count>
           <WinNumber>1</WinNumber>
-          <ItemText>AngleNow</ItemText>
+          <ItemText>pi_AngleNow</ItemText>
         </Ww>
         <Ww>
           <count>8</count>
           <WinNumber>1</WinNumber>
-          <ItemText>u</ItemText>
-        </Ww>
-        <Ww>
-          <count>9</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>i</ItemText>
+          <ItemText>yaw</ItemText>
         </Ww>
       </WatchWindow1>
       <Tracepoint>

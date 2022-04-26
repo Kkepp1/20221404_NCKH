@@ -63,7 +63,7 @@ public class MainActivity extends AppCompatActivity {
                                               @Override
                                               public void onDataChange(@NonNull DataSnapshot snapshot) {
                                                   float a=(float)snapshot.getValue(Integer.class);
-                                                  y=a+16;
+                                                  y=a;
                                               }
 
                                               @Override

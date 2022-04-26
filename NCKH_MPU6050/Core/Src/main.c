@@ -45,20 +45,27 @@ float roll=0.0;
 float pi = 3.1415926559;
 float time_0 = 0.0;
 float time_1 = 0.0;
-float timeCurrent=0.0;
-float AngleNow; 
+float timeCurrent=0.0; 
 
 // -----------------pid----------------------------
-float SP = 180;
-float  u;
-// 200 30 1
-float Kp=195 ;//5.5 175
-float Ki=20 ;//1.5
-float Kd =1;//2
-float pTerm, iTerm, dTerm, integrated_error, last_error, error;
-float AngleNow;
+float pi_SP = 180;
+float  pi_u;
+// 200 30 1// 200	70	2
+float pi_Kp=200;//5.5 175
+float pi_Ki=90;//1.5
+float pi_Kd =1;//2
+float pi_pTerm, pi_iTerm, pi_dTerm, pi_last_error, pi_error;
+float pi_AngleNow;
 int first_Time=0;
 int test=0;
+float ya_SP = 270;
+float  ya_u;
+
+float ya_Kp=7;//5.5 175
+float ya_Ki=0;//1.5
+float ya_Kd =0;//2
+float ya_pTerm, ya_iTerm, ya_dTerm, ya_last_error, ya_error;
+float ya_AngleNow;
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c2;
 
@@ -150,25 +157,41 @@ float Kalman_getAngle( float newAngle, float newRate, float dt) {
 
     return angle;
 };
-void PID_angle_u(void)
+void PID_piangle_u(void)
 	{
 //Kp=175;		//50	20
 //Ki=0; 	//8.7	18.5
 //Kd=0;		//0.15	0.1
 
-	 error= SP - AngleNow;  // 180 = level
+	 pi_error= pi_SP - pi_AngleNow;  // 180 = level
 
-pTerm = Kp* error;
-iTerm = Ki * (error + last_error);
-dTerm = Kd * (error - last_error);
-  last_error = error;
-  u =  pTerm + iTerm + dTerm;
+pi_pTerm = pi_Kp* pi_error;
+pi_iTerm = pi_Ki * (pi_error + pi_last_error);
+pi_dTerm = pi_Kd * (pi_error - pi_last_error);
+  pi_last_error = pi_error;
+  pi_u =  pi_pTerm + pi_iTerm + pi_dTerm;
 	//i = u;	
- if ( u > 999 ) {
- u = 999;}
- else if ( u< -999 ) u= -999 ;		
+ if ( pi_u > 999 ) {
+ pi_u = 999;}
+ else if ( pi_u< -999 ) pi_u= -999 ;		
 	
 	}
+//void PID_yaangle_u(void)
+//	{
+
+//	 ya_error= ya_SP - ya_AngleNow;  // 180 = level
+
+//ya_pTerm = ya_Kp* ya_error;
+//ya_iTerm = ya_Ki * (ya_error + ya_last_error);
+//ya_dTerm = ya_Kd * (ya_error - ya_last_error);
+//  ya_last_error = ya_error;
+//  ya_u =  ya_pTerm + ya_iTerm + ya_dTerm;
+//	//i = u;	
+// if ( ya_u > 999 ) {
+// ya_u = 999;}
+// else if ( ya_u< -999 ) ya_u= -999 ;		
+//	
+//	}
 /**
   * @brief  The application entry point.
   * @retval int
@@ -199,10 +222,7 @@ int main(void)
 				HAL_Delay(100);
 				first_Time++;
 			}
-//			if(test<1000){
-//				SP=176;
-//			} else SP=178;
-			//Read mpu
+			// read IMU
 			MPU6050_Read_Accel();
 	    MPU6050_Read_Gyro();
 		
@@ -210,18 +230,19 @@ int main(void)
       timeCurrent = (time_0 - time_1)/1000;
       time_1 = time_0 ;
 			pitch = (atan2f((- Ax), Az)+pi)*180/pi;
-			AngleNow = Kalman_getAngle(pitch,Gy,timeCurrent);
-			//pid angle
-		 PID_angle_u();
-		if(u<0) // angle>180
+			yaw = yaw+Gz*timeCurrent*180/pi;
+			pi_AngleNow = Kalman_getAngle(pitch,Gy,timeCurrent);
+		 PID_piangle_u();
+			// set compare
+		if(pi_u<0) // angle>180
 				{
-					u=0-u;
+					pi_u=0-pi_u;
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_SET);//A1
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_RESET);//B1
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);//A2
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);//B2
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u+95);//98
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u+100);//100
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,pi_u);//98
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,pi_u);//100
 				}
 				else
 				{
@@ -229,12 +250,10 @@ int main(void)
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_SET);//B1
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_RESET);//A2
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_SET);//B2
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u+95);
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u+100);
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,pi_u);
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,pi_u);
 					
 				}
-//				test++;
-				
   }
   /* USER CODE END 3 */
 }
