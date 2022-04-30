@@ -21,6 +21,7 @@
 #include "main.h"
 #include "math.h"
 #include "stdlib.h"
+#include "stdio.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 //---------------define address register mpu6050--------
@@ -66,17 +67,21 @@ float pi = 3.1415926559;
 float time_0 = 0.0;
 float time_1 = 0.0;
 float timeCurrent=0.0;
-float AngleNow; 
 
 // -----------------pid----------------------------
-float SP = 183.5;
+#define SP_VALUE 183.5
+#define SP_U			SP_VALUE+3
+#define SP_D			SP_VALUE-3
+float SP = SP_VALUE;
 float  u;
+float AddT=0;
+float AddP=0;
 // 200 30 1
 float Kp=350 ;//5.5 175
 float Ki=40;//1.5
 float Kd =1;//2
 float pTerm, iTerm, dTerm, last_error, error;
-float AngleNow;
+float AngleNow=187;
 
 float ya_SP = 181;
 
@@ -90,6 +95,11 @@ float ya_Ki=0;//1.5
 float ya_Kd =0;//2
 float ya_pTerm, ya_iTerm, ya_dTerm, ya_last_error, ya_error;
 float ya_AngleNow;
+
+char Tx_data[10];
+char Rx_data;
+
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -108,10 +118,14 @@ float ya_AngleNow;
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
-I2C_HandleTypeDef hi2c2;
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim4;
+
+UART_HandleTypeDef huart1;
+UART_HandleTypeDef huart3;
+DMA_HandleTypeDef hdma_usart1_rx;
+DMA_HandleTypeDef hdma_usart3_rx;
 
 /* USER CODE BEGIN PV */
 
@@ -120,10 +134,12 @@ TIM_HandleTypeDef htim4;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_I2C2_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM4_Init(void);
+static void MX_DMA_Init(void);
+static void MX_USART1_UART_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
 //-------------------------------------------function---------------------
 void MPU6050_Init(void)
@@ -220,20 +236,40 @@ dTerm = Kd * (error - last_error);
  else if ( u< -999 ) u= -999 ;		
 	
 	}
-int i=0;
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance==TIM4){
+			HAL_UART_Receive_DMA(&huart3,(uint8_t*)&Rx_data,1);
+			if(Rx_data=='U'){
+			SP=SP_U;
+			AddT=0;
+			AddP=0;
+		}else if(Rx_data=='D'){
+			SP=SP_D;
+			AddT=0;
+			AddP=0;
+		}else if(Rx_data=='R'){
+			SP=SP_U;
+			AddT=0;
+			AddP=100;
+		}else if(Rx_data=='L'){
+			SP=SP_U;
+			AddT=100;
+			AddP=0;
+		}else if(Rx_data=='O'){
+			SP=SP_VALUE;
+			AddT=0;
+			AddP=0;
+		}
+		Rx_data=NULL;
 					MPU6050_Read_Accel();
 					MPU6050_Read_Gyro();
-					pitch = (atan2f((- Ax), Az)+pi)*180/pi;	
-					Gz_ya=(Gz*0.0001)*180/pi;
-					delta_ya=Gz_ya - lastGz_ya;
-					//yaw =yaw+delta_ya;
-					yaw=(atan2f((- Ay), (-Ax))+pi)*180/pi;	
-					AngleNow = Kalman_getAngle(pitch,Gy,0.0001);
-					PID_angle_u();
-					//PID_yaangle_u();
+					pitch = (atan2f((- Ax), Az)+pi)*180/pi;		
+					AngleNow = Kalman_getAngle(pitch,Gy,0.001);
+		
 
+		
+					PID_angle_u();
+	
 		if(u<0) // angle>180
 				{
 					u=0-u;
@@ -241,8 +277,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_RESET);//B1
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);//A2
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);//B2
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u);//98
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u);//100
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u+AddT);//98
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u+AddP);//100
 				}
 				else
 				{
@@ -250,14 +286,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_SET);//B1
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_RESET);//A2
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_SET);//B2
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u);
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u);
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u+AddT);
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u+AddP);
 					
 				}
-				lastGz_ya=Gz_ya;
 
 		}
 }
+//void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
+//	if(huart->Instance==huart3.Instance){
+
+//	}
+//}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -293,25 +333,35 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_I2C2_Init();
   MX_TIM2_Init();
   MX_TIM4_Init();
+  MX_DMA_Init();
+  MX_USART1_UART_Init();
   MX_I2C1_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
+	//HAL_Delay(100);
 	MPU6050_Init();
+	//HAL_Delay(100);
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);	
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 	//HAL_TIM_Base_Start_IT(&htim3);
 	HAL_TIM_Base_Start_IT(&htim4);
+	HAL_UART_Receive_DMA(&huart3,(uint8_t*)&Rx_data,1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* USER CODE END WHILE */
+		time_1=HAL_GetTick();
+		if((time_1-time_0)==1){
+					//AngleNow++;
+					sprintf(Tx_data, "%f", AngleNow);
+		     HAL_UART_Transmit(&huart3,(uint8_t*)Tx_data,sizeof(Tx_data),100);
+					time_0=time_1;
+		}
 
-    /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
@@ -385,40 +435,6 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
-
-}
-
-/**
-  * @brief I2C2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2C2_Init(void)
-{
-
-  /* USER CODE BEGIN I2C2_Init 0 */
-
-  /* USER CODE END I2C2_Init 0 */
-
-  /* USER CODE BEGIN I2C2_Init 1 */
-
-  /* USER CODE END I2C2_Init 1 */
-  hi2c2.Instance = I2C2;
-  hi2c2.Init.ClockSpeed = 100000;
-  hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
-  hi2c2.Init.OwnAddress1 = 0;
-  hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c2.Init.OwnAddress2 = 0;
-  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2C2_Init 2 */
-
-  /* USER CODE END I2C2_Init 2 */
 
 }
 
@@ -504,7 +520,7 @@ static void MX_TIM4_Init(void)
 
   /* USER CODE END TIM4_Init 1 */
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 360-1;
+  htim4.Init.Prescaler = 3600-1;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim4.Init.Period = 9;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -527,6 +543,91 @@ static void MX_TIM4_Init(void)
   /* USER CODE BEGIN TIM4_Init 2 */
 
   /* USER CODE END TIM4_Init 2 */
+
+}
+
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 9600;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
+  * @brief USART3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART3_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART3_Init 0 */
+
+  /* USER CODE END USART3_Init 0 */
+
+  /* USER CODE BEGIN USART3_Init 1 */
+
+  /* USER CODE END USART3_Init 1 */
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 9600;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART3_Init 2 */
+
+  /* USER CODE END USART3_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
+  /* DMA1_Channel5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
 
 }
 

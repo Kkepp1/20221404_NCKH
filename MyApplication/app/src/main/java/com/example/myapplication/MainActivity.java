@@ -59,7 +59,7 @@ public class MainActivity extends AppCompatActivity {
                                       @Override
                                       public void run() {
                                           // update data angle
-                                          mydata.child("y").addValueEventListener(new ValueEventListener() {
+                                          mydata.child("AngleNow").addValueEventListener(new ValueEventListener() {
                                               @Override
                                               public void onDataChange(@NonNull DataSnapshot snapshot) {
                                                   float a=(float)snapshot.getValue(Integer.class);

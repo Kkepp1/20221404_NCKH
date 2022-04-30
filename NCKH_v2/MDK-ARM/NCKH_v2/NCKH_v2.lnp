@@ -17,6 +17,7 @@
 "nckh_v2\stm32f1xx_hal_exti.o"
 "nckh_v2\stm32f1xx_hal_tim.o"
 "nckh_v2\stm32f1xx_hal_tim_ex.o"
+"nckh_v2\stm32f1xx_hal_uart.o"
 "nckh_v2\system_stm32f1xx.o"
 --strict --scatter "NCKH_v2\NCKH_v2.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols

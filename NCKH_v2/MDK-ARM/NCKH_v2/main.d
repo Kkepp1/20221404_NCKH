@@ -28,5 +28,7 @@ nckh_v2\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_i2c.h
 nckh_v2\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
 nckh_v2\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h
 nckh_v2\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
+nckh_v2\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h
 nckh_v2\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
 nckh_v2\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
+nckh_v2\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
