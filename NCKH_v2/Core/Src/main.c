@@ -69,7 +69,7 @@ float time_1 = 0.0;
 float timeCurrent=0.0;
 
 // -----------------pid----------------------------
-#define SP_VALUE 183.5
+#define SP_VALUE 181
 #define SP_U			SP_VALUE+3
 #define SP_D			SP_VALUE-3
 float SP = SP_VALUE;
@@ -78,15 +78,13 @@ float AddT=0;
 float AddP=0;
 // 200 30 1
 float Kp=350 ;//5.5 175
-float Ki=40;//1.5
+float Ki=70;//1.5
 float Kd =1;//2
 float pTerm, iTerm, dTerm, last_error, error;
 float AngleNow=187;
 
 float ya_SP = 181;
-
 float  ya_u;
-
 float Gz_ya=0;
 float lastGz_ya=0;
 float delta_ya;
@@ -239,6 +237,7 @@ dTerm = Kd * (error - last_error);
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance==TIM4){
 			HAL_UART_Receive_DMA(&huart3,(uint8_t*)&Rx_data,1);
+			SP=SP_VALUE;
 			if(Rx_data=='U'){
 			SP=SP_U;
 			AddT=0;
@@ -249,18 +248,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			AddP=0;
 		}else if(Rx_data=='R'){
 			SP=SP_U;
-			AddT=0;
-			AddP=100;
+			AddT=-500;
+			AddP=500;
 		}else if(Rx_data=='L'){
 			SP=SP_U;
-			AddT=100;
-			AddP=0;
+			AddT=500;
+			AddP=-500;
 		}else if(Rx_data=='O'){
 			SP=SP_VALUE;
 			AddT=0;
 			AddP=0;
 		}
-		Rx_data=NULL;
+		//Rx_data=NULL;
+
 					MPU6050_Read_Accel();
 					MPU6050_Read_Gyro();
 					pitch = (atan2f((- Ax), Az)+pi)*180/pi;		
@@ -269,7 +269,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 
 		
 					PID_angle_u();
-	
+					if(AddP<-u) AddP=-u;
+					if(AddT<-u) AddT=-u;
 		if(u<0) // angle>180
 				{
 					u=0-u;
@@ -340,9 +341,7 @@ int main(void)
   MX_I2C1_Init();
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
-	//HAL_Delay(100);
 	MPU6050_Init();
-	//HAL_Delay(100);
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);	
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 	//HAL_TIM_Base_Start_IT(&htim3);
