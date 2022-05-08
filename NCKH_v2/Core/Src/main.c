@@ -70,15 +70,17 @@ float timeCurrent=0.0;
 
 // -----------------pid----------------------------
 #define SP_VALUE 181
-#define SP_U			SP_VALUE+3
-#define SP_D			SP_VALUE-3
+#define SP_U			SP_VALUE+2
+#define SP_D			SP_VALUE-1
 float SP = SP_VALUE;
 float  u;
 float AddT=0;
 float AddP=0;
+float SubT=1;
+float SubP=1;
 // 200 30 1
 float Kp=350 ;//5.5 175
-float Ki=70;//1.5
+float Ki=55;//1.5
 float Kd =1;//2
 float pTerm, iTerm, dTerm, last_error, error;
 float AngleNow=187;
@@ -242,22 +244,38 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			SP=SP_U;
 			AddT=0;
 			AddP=0;
+			SubT=1;
+			SubP=1;
 		}else if(Rx_data=='D'){
 			SP=SP_D;
 			AddT=0;
 			AddP=0;
+			SubT=1;
+			SubP=1;
 		}else if(Rx_data=='R'){
-			SP=SP_U;
-			AddT=-500;
-			AddP=500;
+			SP=SP_VALUE;
+			AddT=0;
+			AddP=0;
+			SubT=0;
+			SubP=1;
 		}else if(Rx_data=='L'){
-			SP=SP_U;
-			AddT=500;
-			AddP=-500;
+			SP=SP_VALUE;
+			AddT=0;
+			AddP=0;
+			SubT=1;
+			SubP=0;
 		}else if(Rx_data=='O'){
 			SP=SP_VALUE;
 			AddT=0;
 			AddP=0;
+			SubT=1;
+			SubP=1;
+		}else{
+			SP=SP_VALUE;
+			AddT=0;
+			AddP=0;
+			SubT=1;
+			SubP=1;
 		}
 		//Rx_data=NULL;
 
@@ -265,12 +283,36 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 					MPU6050_Read_Gyro();
 					pitch = (atan2f((- Ax), Az)+pi)*180/pi;		
 					AngleNow = Kalman_getAngle(pitch,Gy,0.001);
-		
 
-		
 					PID_angle_u();
-					if(AddP<-u) AddP=-u;
-					if(AddT<-u) AddT=-u;
+		
+//					if(AddT<0){
+//						AddT=0-AddT;
+//						HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_SET);//A1
+//						HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_RESET);//B1
+//						__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,AddT);//98
+//					}else{
+//						HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_RESET);//A1
+//						HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_SET);//B1
+//						__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,AddT);//98
+//					}
+//					if(AddP<0){
+//						AddP=0-AddP;
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);//A2
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);//B2
+//						__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,AddP);//98
+//					}else{
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_RESET);//A2
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_SET);//B2
+//						__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,AddP);//98
+//					}
+//		
+					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_SET);//A1
+					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_RESET);//B1
+					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);//A2
+					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);//B2
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,AddT);//98
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,AddP);//100
 		if(u<0) // angle>180
 				{
 					u=0-u;
@@ -278,8 +320,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_RESET);//B1
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);//A2
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);//B2
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u+AddT);//98
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u+AddP);//100
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u*SubT);//98
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u*SubP);//100
 				}
 				else
 				{
@@ -287,10 +329,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_SET);//B1
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_RESET);//A2
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_SET);//B2
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u+AddT);
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u+AddP);
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u*SubT);
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u*SubP);
 					
 				}
+			//Rx_data='O';				
 
 		}
 }
@@ -353,18 +396,40 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-		time_1=HAL_GetTick();
-		if((time_1-time_0)==1){
-					//AngleNow++;
-					sprintf(Tx_data, "%f", AngleNow);
-		     HAL_UART_Transmit(&huart3,(uint8_t*)Tx_data,sizeof(Tx_data),100);
-					time_0=time_1;
-		}
+//		time_1=HAL_GetTick();
+//		if((time_1-time_0)==1){
+//					//AngleNow++;
+//					sprintf(Tx_data, "%f", AngleNow);
+////		     HAL_UART_Transmit(&huart3,(uint8_t*)Tx_data,sizeof(Tx_data),100);
+//		
+//					time_0=time_1;
+//		}
 
   }
   /* USER CODE END 3 */
 }
+#ifdef __GNUC__
+/* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
+ set to 'Yes') calls __io_putchar() */
+ #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+ #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif /* __GNUC__ */
 
+/**
+ * @brief Retargets the C library printf function to the USART.
+ * @param None
+ * @retval None
+ */
+PUTCHAR_PROTOTYPE 
+{
+ /* Place your implementation of fputc here */
+ /* e.g. write a character to the USART */
+ HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 9);
+
+
+ return ch;
+}
 /**
   * @brief System Clock Configuration
   * @retval None
