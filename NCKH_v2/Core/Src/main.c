@@ -58,7 +58,8 @@ float	angle = 0.0;
 float	Q_angle = 0.001;
 float	Q_bias = 0.003;
 float	R_measure = 0.03;
-float P[2][2];int16_t rawYGyro;
+float P[2][2];
+int16_t rawYGyro;
 
 float pitch=0.0;
 float yaw=180;
@@ -69,20 +70,20 @@ float time_1 = 0.0;
 float timeCurrent=0.0;
 
 // -----------------pid----------------------------
-#define SP_VALUE 181
-#define SP_U			SP_VALUE+2
-#define SP_D			SP_VALUE-1
+#define SP_VALUE 180.5
+#define SP_UP			SP_VALUE+2
+#define SP_DOWN			SP_VALUE-2
+#define TURN_SPEED 200
 float SP = SP_VALUE;
-float  u;
-float uT;
-float uP;
+float  u=0;
+float uT=0;
+float uP=0;
 float AddT=0;
 float AddP=0;
-float SubT=1;
-float SubP=1;
+
 // 200 30 1
 float Kp=350 ;//5.5 175
-float Ki=55;//1.5
+float Ki=57;//1.5
 float Kd =1;//2
 float pTerm, iTerm, dTerm, last_error, error;
 float AngleNow=187;
@@ -225,13 +226,13 @@ float Kalman_getAngle( float newAngle, float newRate, float dt) {
 };
 void PID_angle_u(void)
 	{
-error= SP - AngleNow;  // 180 = level
+	error= SP - AngleNow;  // 180 = level
 
-pTerm = Kp* error;
-iTerm = Ki * (error + last_error);
-dTerm = Kd * (error - last_error);
-  last_error = error;
-  u =  pTerm + iTerm + dTerm;
+	pTerm = Kp* error;
+	iTerm = Ki * (error + last_error);
+	dTerm = Kd * (error - last_error);
+	last_error = error;
+	u =  pTerm + iTerm + dTerm;
 	//i = u;	
  if ( u > 999 ) {
  u = 999;}
@@ -242,42 +243,34 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance==TIM4){
 			HAL_UART_Receive_DMA(&huart3,(uint8_t*)&Rx_data,1);
 			SP=SP_VALUE;
+			AddT=0;
+			AddP=0;
+			uP=0;
+			uT=0;
 			if(Rx_data=='U'){
-			SP=SP_U;
+			SP=SP_UP;
 			AddT=0;
 			AddP=0;
-			SubT=1;
-			SubP=1;
 		}else if(Rx_data=='D'){
-			SP=SP_D;
+			SP=SP_DOWN;
 			AddT=0;
 			AddP=0;
-			SubT=1;
-			SubP=1;
 		}else if(Rx_data=='R'){
 			SP=SP_VALUE;
-			AddT=-100;
-			AddP=100;
-			SubT=0;
-			SubP=1;
+			AddT=-TURN_SPEED;
+			AddP=TURN_SPEED;
 		}else if(Rx_data=='L'){
 			SP=SP_VALUE;
-			AddT=100;
-			AddP=-100;
-			SubT=1;
-			SubP=0;
+			AddT=TURN_SPEED;
+			AddP=-TURN_SPEED;
 		}else if(Rx_data=='O'){
 			SP=SP_VALUE;
 			AddT=0;
 			AddP=0;
-			SubT=1;
-			SubP=1;
 		}else{
 			SP=SP_VALUE;
 			AddT=0;
 			AddP=0;
-			SubT=1;
-			SubP=1;
 		}
 		//Rx_data=NULL;
 
