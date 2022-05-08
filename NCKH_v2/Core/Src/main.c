@@ -74,6 +74,8 @@ float timeCurrent=0.0;
 #define SP_D			SP_VALUE-1
 float SP = SP_VALUE;
 float  u;
+float uT;
+float uP;
 float AddT=0;
 float AddP=0;
 float SubT=1;
@@ -254,14 +256,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			SubP=1;
 		}else if(Rx_data=='R'){
 			SP=SP_VALUE;
-			AddT=0;
-			AddP=0;
+			AddT=-100;
+			AddP=100;
 			SubT=0;
 			SubP=1;
 		}else if(Rx_data=='L'){
 			SP=SP_VALUE;
-			AddT=0;
-			AddP=0;
+			AddT=100;
+			AddP=-100;
 			SubT=1;
 			SubP=0;
 		}else if(Rx_data=='O'){
@@ -285,54 +287,65 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 					AngleNow = Kalman_getAngle(pitch,Gy,0.001);
 
 					PID_angle_u();
-		
-//					if(AddT<0){
-//						AddT=0-AddT;
-//						HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_SET);//A1
-//						HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_RESET);//B1
-//						__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,AddT);//98
-//					}else{
-//						HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_RESET);//A1
-//						HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_SET);//B1
-//						__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,AddT);//98
-//					}
-//					if(AddP<0){
-//						AddP=0-AddP;
-//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);//A2
-//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);//B2
-//						__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,AddP);//98
-//					}else{
-//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_RESET);//A2
-//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_SET);//B2
-//						__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,AddP);//98
-//					}
-//		
-					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_SET);//A1
-					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_RESET);//B1
-					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);//A2
-					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);//B2
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,AddT);//98
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,AddP);//100
-		if(u<0) // angle>180
+					uT=u+AddT;
+					uP=u+AddP;
+					if ( uT > 999 ) {
+						uT = 999;}
+					else if ( uT< -999 ) uT= -999 ;	
+					if ( uP > 999 ) {
+						uP = 999;}
+					else if ( uP< -999 ) uP= -999 ;	
+			if(uT<0) // angle>180
 				{
-					u=0-u;
+					uT=0-uT;
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_SET);//A1
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_RESET);//B1
-					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);//A2
-					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);//B2
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u*SubT);//98
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u*SubP);//100
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,uT);//98
+
 				}
 				else
 				{
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_RESET);//A1
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_SET);//B1
-					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_RESET);//A2
-					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_SET);//B2
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u*SubT);
-					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u*SubP);
-					
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,uT);
+		
 				}
+			if(uP<0) // angle>180
+				{
+					uP=0-uP;
+					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);//A1
+					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);//B1
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,uP);//98
+
+				}
+				else
+				{
+					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_RESET);//A1
+					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_SET);//B1
+					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,uP);
+		
+				}
+//	
+//		if(u<0) // angle>180
+//				{
+//					u=0-u;
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_SET);//A1
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_RESET);//B1
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);//A2
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);//B2
+//					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u*SubT);//98
+//					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u*SubP);//100
+//				}
+//				else
+//				{
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_RESET);//A1
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_SET);//B1
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_RESET);//A2
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_SET);//B2
+//					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u*SubT);
+//					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u*SubP);
+//					
+//				}
 			//Rx_data='O';				
 
 		}
