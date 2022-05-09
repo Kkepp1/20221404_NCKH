@@ -40,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
         FirebaseDatabase database = FirebaseDatabase.getInstance();
 //        DatabaseReference teta = database.getReference("angle");
         DatabaseReference mydata = FirebaseDatabase.getInstance().getReference();
+
         graph = (GraphView) findViewById(R.id.graph);
 
         graph.setTitle("Angle per second");
