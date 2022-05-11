@@ -19,105 +19,56 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "math.h"
 #include "stdlib.h"
 #include "stdio.h"
+#include "string.h"
+#include "mpu6050.h"
+#include "PID.h"
 /* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
-//---------------define address register mpu6050--------
-#define WHO_AM_I_REG 0X75
-#define MPU6050_ADDR 0XD0
-#define PWR_MGMT_1_REG 0x6B
-#define SMPLRT_DIV_REG 0x19
-#define ACCEL_CONFIG_REG 0x1C
-#define GYRO_CONFIG_REG 0x1B
 
-#define ACCEL_XOUT_H_REG 0x3B
-#define GYRO_XOUT_H_REG 0x43
-#define TEMP_OUT_H_REG 0x41
-#define PWR_MGMT_1_REG 0x6B
-// -----------------variable------------------------------
-
-int16_t Accel_X_RAW = 0;
-int16_t Accel_Y_RAW = 0;
-int16_t Accel_Z_RAW = 0;
-
-int16_t Gyro_X_RAW = 0;
-int16_t Gyro_Y_RAW = 0;
-int16_t Gyro_Z_RAW = 0;
-
-float Ax=0;
-float Ay=0;
-float Az=0;
-float Gx=0;
-float Gy=0;
-float Gz=0;
-
-float	bias =0.003;
-float	angle = 0.0;
-float	Q_angle = 0.001;
-float	Q_bias = 0.003;
-float	R_measure = 0.03;
-float P[2][2];
-int16_t rawYGyro;
-
-float pitch=0.0;
-float yaw=180;
-float roll=0.0;
-float pi = 3.1415926559;
 float time_0 = 0.0;
 float time_1 = 0.0;
 float timeCurrent=0.0;
-
 // -----------------pid----------------------------
+#define TEST_MODE (0)
+#define NORMAL_MODE (1)
 #define SP_VALUE 180.5
 #define SP_UP			SP_VALUE+2
 #define SP_DOWN			SP_VALUE-2
 #define TURN_SPEED 200
-float SP = SP_VALUE;
+#define TIME_SAMPLE 0.001
+
+
 float  u=0;
+float  yu=0;
+float yuT=0;
+float yuP=0;
 float uT=0;
 float uP=0;
 float AddT=0;
 float AddP=0;
 
 // 200 30 1
+float SP = SP_VALUE;
+float Pitch=0;
 float Kp=350 ;//5.5 175
-float Ki=57;//1.5
+float Ki=59;//1.5
 float Kd =1;//2
-float pTerm, iTerm, dTerm, last_error, error;
-float AngleNow=187;
 
-float ya_SP = 181;
-float  ya_u;
-float Gz_ya=0;
-float lastGz_ya=0;
-float delta_ya;
-float ya_Kp=0.8;//5.5 175
-float ya_Ki=0;//1.5
-float ya_Kd =0;//2
-float ya_pTerm, ya_iTerm, ya_dTerm, ya_last_error, ya_error;
-float ya_AngleNow;
-
+float ySP=0;
+float Yaw=0;
+float yKp=2;//5.5 175
+float yKi=0;//1.5
+float yKd =0;//2
 char Tx_data[10];
 char Rx_data;
+int Rx_index=0;
+char Rx_data1[100];
 
+float Error_calib=0.11;
 
-/* USER CODE END Includes */
-
-/* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
-
-/* USER CODE END PTD */
-
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-/* USER CODE END PD */
-
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
+float pTerm, iTerm, dTerm, last_error, error;
+float ypTerm, yiTerm, ydTerm, ylast_error, yerror;
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
@@ -130,10 +81,6 @@ UART_HandleTypeDef huart3;
 DMA_HandleTypeDef hdma_usart1_rx;
 DMA_HandleTypeDef hdma_usart3_rx;
 
-/* USER CODE BEGIN PV */
-
-/* USER CODE END PV */
-
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
@@ -143,152 +90,118 @@ static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART3_UART_Init(void);
-/* USER CODE BEGIN PFP */
 //-------------------------------------------function---------------------
-void MPU6050_Init(void)
-{
-  uint8_t check, Data;
-	HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, WHO_AM_I_REG,1,&check,1,100);
-		if(check == 104) // if the device is present
-		{
-			Data =0;
-			HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, PWR_MGMT_1_REG,1,&Data, 1, 100); 
-      Data= 0x07;
-			HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, SMPLRT_DIV_REG,1,&Data,1,100);
-      Data = 0x00;
-			HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, ACCEL_CONFIG_REG,1,&Data,1,100);			
-      Data = 0x00;
-			HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, GYRO_CONFIG_REG,1,&Data,1,100); 
-		}
-}
-void MPU6050_Read_Accel(void){
- uint8_t Rec_Data[6];
-	
-	HAL_I2C_Mem_Read (&hi2c1, MPU6050_ADDR, ACCEL_XOUT_H_REG,1,Rec_Data,6,100);
-	
-	Accel_X_RAW = (int16_t)(Rec_Data[0] << 8 | Rec_Data [1]);
-	Accel_Y_RAW = (int16_t)(Rec_Data[2] << 8 | Rec_Data [3]);
-	Accel_Z_RAW = (int16_t)(Rec_Data[4] << 8 | Rec_Data [5]);
-	
-	Ax = Accel_X_RAW/16384.0f;
-	Ay = Accel_Y_RAW/16384.0f;
-	Az = Accel_Z_RAW/16384.0f;
-	}
 
-void MPU6050_Read_Gyro (void)
-{
-	uint8_t Rec_Data[6];
-
-	// Read 6 BYTES of data starting from GYRO_XOUT_H register
-
-	HAL_I2C_Mem_Read (&hi2c1, MPU6050_ADDR, GYRO_XOUT_H_REG, 1, Rec_Data, 6,100);
-
-	Gyro_X_RAW = (int16_t)(Rec_Data[0] << 8 | Rec_Data [1]);
-	Gyro_Y_RAW = (int16_t)(Rec_Data[2] << 8 | Rec_Data [3]);
-	Gyro_Z_RAW = (int16_t)(Rec_Data[4] << 8 | Rec_Data [5]);
-
-	/*** convert the RAW values into dps (°/s)
-	     we have to divide according to the Full scale value set in FS_SEL
-	     I have configured FS_SEL = 0. So I am dividing by 131.0
-	     for more details check GYRO_CONFIG Register              ****/
-
-	Gx = Gyro_X_RAW/131.0;
-	Gy = Gyro_Y_RAW/131.0;
-	Gz = Gyro_Z_RAW/131.0;
-}
-float Kalman_getAngle( float newAngle, float newRate, float dt) {
-    float rate = newRate - bias;
-    angle += dt * rate;
-
-    P[0][0] += dt * (dt * P[1][1] - P[0][1] - P[1][0] + Q_angle);
-    P[0][1] -= dt * P[1][1];
-    P[1][0] -= dt * P[1][1];
-    P[1][1] += Q_bias * dt;
-
-    float S = P[0][0] + R_measure;
-    float K[2];
-    K[0] = P[0][0] / S;
-    K[1] = P[1][0] / S;
-
-    float y = newAngle - angle;
-    angle += K[0] * y;
-    bias += K[1] * y;
-
-    float P00_temp = P[0][0];
-    float P01_temp = P[0][1];
-
-    P[0][0] -= K[0] * P00_temp;
-    P[0][1] -= K[0] * P01_temp;
-    P[1][0] -= K[1] * P00_temp;
-    P[1][1] -= K[1] * P01_temp;
-
-    return angle;
-};
-void PID_angle_u(void)
-	{
-	error= SP - AngleNow;  // 180 = level
-
-	pTerm = Kp* error;
-	iTerm = Ki * (error + last_error);
-	dTerm = Kd * (error - last_error);
-	last_error = error;
-	u =  pTerm + iTerm + dTerm;
-	//i = u;	
- if ( u > 999 ) {
- u = 999;}
- else if ( u< -999 ) u= -999 ;		
-	
-	}
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance==TIM4){
+		 int dev=0;
+		
+//------------------------------------------------------UART----------------------------------------
+#if NORMAL_MODE
 			HAL_UART_Receive_DMA(&huart3,(uint8_t*)&Rx_data,1);
 			SP=SP_VALUE;
 			AddT=0;
 			AddP=0;
-			uP=0;
-			uT=0;
+//			uP=0;
+//			uT=0;
+		
 			if(Rx_data=='U'){
-			SP=SP_UP;
-			AddT=0;
-			AddP=0;
+			SP=SP_VALUE;
+			ySP=0;
+//			AddT=0;
+//			AddP=0;
 		}else if(Rx_data=='D'){
-			SP=SP_DOWN;
-			AddT=0;
-			AddP=0;
+			SP=SP_VALUE;
+			if(Yaw>0){
+				ySP=180;
+			}else ySP=-180;
+			
+//			AddT=0;
+//			AddP=0;
+			
 		}else if(Rx_data=='R'){
 			SP=SP_VALUE;
-			AddT=-TURN_SPEED;
-			AddP=TURN_SPEED;
+			ySP=90;
+
+//			AddT=-TURN_SPEED;
+//			AddP=TURN_SPEED;
 		}else if(Rx_data=='L'){
 			SP=SP_VALUE;
-			AddT=TURN_SPEED;
-			AddP=-TURN_SPEED;
+			ySP=-90;
+//			AddT=TURN_SPEED;
+//			AddP=-TURN_SPEED;
+		}else if(Rx_data=='u'){
+			SP=SP_UP;
+			ySP=ySP;
+//			AddT=TURN_SPEED;
+//			AddP=-TURN_SPEED;
+		}else if(Rx_data=='d'){
+			SP=SP_DOWN;
+			ySP=ySP;
+//			AddT=TURN_SPEED;
+//			AddP=-TURN_SPEED;
 		}else if(Rx_data=='O'){
 			SP=SP_VALUE;
-			AddT=0;
-			AddP=0;
+			ySP=ySP;
+//			AddT=0;
+//			AddP=0;
 		}else{
 			SP=SP_VALUE;
-			AddT=0;
-			AddP=0;
+			ySP=ySP;
+//			AddT=0;
+//			AddP=0;
 		}
-		//Rx_data=NULL;
+#endif	
+//---------------------------------------------------PID---------------------------------------------------------
+					MPU6050_GET_ANGLE(&hi2c1,&Pitch,&Yaw,Error_calib,TIME_SAMPLE);
+					u = PID(SP,Pitch,Kp,Ki,Kd,&error,&last_error,&pTerm,&iTerm,&dTerm);
+					yu= PID(ySP,Yaw,yKp,yKi,yKd,&yerror,&ylast_error,&ypTerm,&yiTerm,&ydTerm);
 
-					MPU6050_Read_Accel();
-					MPU6050_Read_Gyro();
-					pitch = (atan2f((- Ax), Az)+pi)*180/pi;		
-					AngleNow = Kalman_getAngle(pitch,Gy,0.001);
+							yuT=yu;
+							yuP=-yu;
+				
+//			if(yuT<0) // angle>180
+//				{
+//					yuT=0-yuT;
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_SET);//A1
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_RESET);//B1
+//					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,yuT);//98
 
-					PID_angle_u();
-					uT=u+AddT;
-					uP=u+AddP;
-					if ( uT > 999 ) {
-						uT = 999;}
-					else if ( uT< -999 ) uT= -999 ;	
-					if ( uP > 999 ) {
-						uP = 999;}
-					else if ( uP< -999 ) uP= -999 ;	
-			if(uT<0) // angle>180
+//				}
+//				else
+//				{
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_RESET);//A1
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_SET);//B1
+//					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,yuT);
+//		
+//				}
+//			if(yuP<0) // angle>180
+//				{
+//					yuP=0-yuP;
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);//A1
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);//B1
+//					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,yuP);//98
+
+//				}
+//				else
+//				{
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_RESET);//A1
+//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_SET);//B1
+//					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,yuP);
+//		
+//				}			
+					
+					uT=u+yuT;
+					uP=u+yuP;
+					Constant(&uT,999,-999);
+					Constant(&uP,999,-999);
+//					if ( uT > 999 ) {
+//						uT = 999;}
+//					else if ( uT< -999 ) uT= -999 ;	
+//					if ( uP > 999 ) {
+//						uP = 999;}
+//					else if ( uP< -999 ) uP= -999 ;	
+			if(uT<0) 
 				{
 					uT=0-uT;
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_SET);//A1
@@ -317,89 +230,80 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_SET);//B1
 					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,uP);
 		
-				}
-//	
-//		if(u<0) // angle>180
-//				{
-//					u=0-u;
-//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_SET);//A1
-//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_RESET);//B1
-//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_SET);//A2
-//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_RESET);//B2
-//					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u*SubT);//98
-//					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u*SubP);//100
-//				}
-//				else
-//				{
-//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_4,GPIO_PIN_RESET);//A1
-//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_5,GPIO_PIN_SET);//B1
-//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_6,GPIO_PIN_RESET);//A2
-//					HAL_GPIO_WritePin(GPIOA,GPIO_PIN_7,GPIO_PIN_SET);//B2
-//					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,u*SubT);
-//					__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_2,u*SubP);
-//					
-//				}
-			//Rx_data='O';				
+				}			
 
 		}
 }
-//void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
-//	if(huart->Instance==huart3.Instance){
-
-//	}
-//}
-/* USER CODE END PFP */
-
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
-
+void Split_String(){
+			const char s[5]=" .,-";
+			char* str_Angle;
+			char* str_Kp;
+			char* str_Ki;	
+			char* str_Kd;
+	
+			str_Angle=strtok(Rx_data1,s);
+			str_Kp=strtok(NULL,s);
+			str_Ki=strtok(NULL,s);
+			str_Kd=strtok(NULL,s);
+			if(strcmp(str_Angle,"pitch")==0){
+					Kp=strtof(str_Kp,NULL);
+					Ki=strtof(str_Ki,NULL);
+					Kd=strtof(str_Kd,NULL);
+			
+			}else if(strcmp(str_Angle,"yaw")==0){
+					yKp=strtof(str_Kp,NULL);
+					yKi=strtof(str_Ki,NULL);
+					yKd=strtof(str_Kd,NULL);
+			}
+			for(int i=0;i<100;i++){
+					Rx_data1[i]=' ';
+			}
+			Rx_index=0;
+}
+#if TEST_MODE
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
+	if(huart->Instance==huart3.Instance){
+			HAL_UART_Receive_DMA(&huart3,(uint8_t*)&Rx_data,1);
+			if(Rx_data!='\n'){
+					Rx_data1[Rx_index++]=Rx_data;
+			}else{
+					Split_String();
+			}
+	}
+}
+#endif
 /**
   * @brief  The application entry point.
   * @retval int
   */
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
-
-  /* USER CODE END 1 */
-
-  /* MCU Configuration--------------------------------------------------------*/
-
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
-
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
 
   /* Configure the system clock */
   SystemClock_Config();
 
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
-
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM2_Init();
-  MX_TIM4_Init();
+  
   MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_I2C1_Init();
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
-	MPU6050_Init();
+	MPU6050_Init(&hi2c1);
+	//calib_MPU6050(&hi2c1,2000,&Error_calib);
+	// start timer 4 init
+	MX_TIM4_Init();
+	
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);	
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 	//HAL_TIM_Base_Start_IT(&htim3);
 	HAL_TIM_Base_Start_IT(&htim4);
 	HAL_UART_Receive_DMA(&huart3,(uint8_t*)&Rx_data,1);
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
+	
+	
   while (1)
   {
 //		time_1=HAL_GetTick();
