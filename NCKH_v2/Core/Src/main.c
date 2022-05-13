@@ -30,8 +30,8 @@ float time_0 = 0.0;
 float time_1 = 0.0;
 float timeCurrent=0.0;
 // -----------------pid----------------------------
-#define TEST_MODE (0)
-#define NORMAL_MODE (1)
+#define TEST_MODE (1)
+#define NORMAL_MODE (0)
 #define SP_VALUE 180.5
 #define SP_UP			SP_VALUE+2
 #define SP_DOWN			SP_VALUE-2
@@ -60,15 +60,24 @@ float Yaw=0;
 float yKp=2;//5.5 175
 float yKi=0;//1.5
 float yKd =0;//2
-char Tx_data[10];
-char Rx_data;
-int Rx_index=0;
-char Rx_data1[100];
+
 
 float Error_calib=0.11;
 
 float pTerm, iTerm, dTerm, last_error, error;
 float ypTerm, yiTerm, ydTerm, ylast_error, yerror;
+
+			const char s[5]=",-";
+			char* str_Angle;
+			char* str_Kp;
+			char* str_Ki;	
+			char* str_Kd;
+			char Tx_data[10]="OK";
+char Rx_data;
+int Rx_index;
+char Rx_data1[100];
+char Rx_data2[100];
+int Rx_flag;
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
@@ -91,14 +100,14 @@ static void MX_USART1_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART3_UART_Init(void);
 //-------------------------------------------function---------------------
-
+void Split_String();
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
-	if(htim->Instance==TIM4){
-		 int dev=0;
-		
+	if(htim->Instance==htim4.Instance){
+	
 //------------------------------------------------------UART----------------------------------------
 #if NORMAL_MODE
 			HAL_UART_Receive_DMA(&huart3,(uint8_t*)&Rx_data,1);
+
 			SP=SP_VALUE;
 			AddT=0;
 			AddP=0;
@@ -235,40 +244,39 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		}
 }
 void Split_String(){
-			const char s[5]=" .,-";
-			char* str_Angle;
-			char* str_Kp;
-			char* str_Ki;	
-			char* str_Kd;
-	
+			
+			strcpy(Rx_data2,Rx_data1);
 			str_Angle=strtok(Rx_data1,s);
-			str_Kp=strtok(NULL,s);
-			str_Ki=strtok(NULL,s);
-			str_Kd=strtok(NULL,s);
+			str_Kp=strtok(NULL,",");
+			str_Ki=strtok(NULL,",");
+			str_Kd=strtok(NULL,",");
 			if(strcmp(str_Angle,"pitch")==0){
 					Kp=strtof(str_Kp,NULL);
 					Ki=strtof(str_Ki,NULL);
 					Kd=strtof(str_Kd,NULL);
-			
 			}else if(strcmp(str_Angle,"yaw")==0){
 					yKp=strtof(str_Kp,NULL);
 					yKi=strtof(str_Ki,NULL);
 					yKd=strtof(str_Kd,NULL);
 			}
-			for(int i=0;i<100;i++){
-					Rx_data1[i]=' ';
-			}
-			Rx_index=0;
+					
 }
 #if TEST_MODE
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance==huart3.Instance){
-			HAL_UART_Receive_DMA(&huart3,(uint8_t*)&Rx_data,1);
-			if(Rx_data!='\n'){
+			
+			if (Rx_index == 0)
+				{
+					for(int i=0;i<100;i++)Rx_data1[i]=0;
+				}
+			if(Rx_data!=13){
 					Rx_data1[Rx_index++]=Rx_data;
 			}else{
-					Split_String();
+				Split_String();
+				Rx_index=0;
+					//Rx_index=0;	
 			}
+		HAL_UART_Receive_DMA(&huart3,(uint8_t*)&Rx_data,1);
 	}
 }
 #endif
@@ -293,7 +301,8 @@ int main(void)
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 	MPU6050_Init(&hi2c1);
-	//calib_MPU6050(&hi2c1,2000,&Error_calib);
+	//calib_MPU6050(&hi2c1,10000,&Error_calib);
+	HAL_UART_Receive_DMA(&huart3,(uint8_t*)&Rx_data,1);
 	// start timer 4 init
 	MX_TIM4_Init();
 	
@@ -301,11 +310,12 @@ int main(void)
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 	//HAL_TIM_Base_Start_IT(&htim3);
 	HAL_TIM_Base_Start_IT(&htim4);
-	HAL_UART_Receive_DMA(&huart3,(uint8_t*)&Rx_data,1);
+	
 	
 	
   while (1)
   {
+
 //		time_1=HAL_GetTick();
 //		if((time_1-time_0)==1){
 //					//AngleNow++;

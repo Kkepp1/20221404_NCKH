@@ -135,14 +135,8 @@ void calib_MPU6050(I2C_HandleTypeDef *hi2c,int loop, float *Error_gyroZ){
 }
 float MPU6050_GET_ANGLE(I2C_HandleTypeDef *hi2c,float *pitch_Kalman,float* yaw,float Error_gyroZ, float timeSample){
 					MPU6050_Read_Accel(hi2c);
-					MPU6050_Read_Gyro(hi2c);
-//					float e=0;
-//					e=0.2;//-0.15
-					
-						 Gz = Gz-Error_gyroZ;
-					
-						
-					
+					MPU6050_Read_Gyro(hi2c);					
+					Gz = Gz-Error_gyroZ;
 					(*yaw)=(*yaw)+Gz*(0.0009+timeSample);
 						//*yaw=*yaw+Gz*timeSample;
 					pitch = (atan2f((- Ax), Az)+PI)*180/PI;	
