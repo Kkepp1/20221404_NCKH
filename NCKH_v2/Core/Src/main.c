@@ -25,13 +25,13 @@
 #include "mpu6050.h"
 #include "PID.h"
 /* Private includes ----------------------------------------------------------*/
-
 float time_0 = 0.0;
 float time_1 = 0.0;
 float timeCurrent=0.0;
 // -----------------pid----------------------------
 #define TEST_MODE (1)
 #define NORMAL_MODE (0)
+#define TIMER  (1)
 #define SP_VALUE 180.5
 #define SP_UP			SP_VALUE+2
 #define SP_DOWN			SP_VALUE-2
@@ -78,7 +78,6 @@ int Rx_index;
 char Rx_data1[100];
 char Rx_data2[100];
 int Rx_flag;
-
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
@@ -90,6 +89,10 @@ UART_HandleTypeDef huart3;
 DMA_HandleTypeDef hdma_usart1_rx;
 DMA_HandleTypeDef hdma_usart3_rx;
 
+/* USER CODE BEGIN PV */
+
+/* USER CODE END PV */
+
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
@@ -99,8 +102,10 @@ static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART3_UART_Init(void);
+/* USER CODE BEGIN PFP */
 //-------------------------------------------function---------------------
 void Split_String();
+#if TIMER 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance==htim4.Instance){
 	
@@ -243,6 +248,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 
 		}
 }
+#endif
 void Split_String(){
 			
 			strcpy(Rx_data2,Rx_data1);
@@ -254,6 +260,7 @@ void Split_String(){
 					Kp=strtof(str_Kp,NULL);
 					Ki=strtof(str_Ki,NULL);
 					Kd=strtof(str_Kd,NULL);
+					
 			}else if(strcmp(str_Angle,"yaw")==0){
 					yKp=strtof(str_Kp,NULL);
 					yKi=strtof(str_Ki,NULL);
@@ -269,7 +276,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 				{
 					for(int i=0;i<100;i++)Rx_data1[i]=0;
 				}
-			if(Rx_data!=13){
+			if(Rx_data!='r'){
 					Rx_data1[Rx_index++]=Rx_data;
 			}else{
 				Split_String();
@@ -280,16 +287,32 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	}
 }
 #endif
+
 /**
   * @brief  The application entry point.
   * @retval int
   */
 int main(void)
 {
+  /* USER CODE BEGIN 1 */
+
+  /* USER CODE END 1 */
+
+  /* MCU Configuration--------------------------------------------------------*/
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
+
+  /* USER CODE BEGIN Init */
+
+  /* USER CODE END Init */
 
   /* Configure the system clock */
   SystemClock_Config();
+
+  /* USER CODE BEGIN SysInit */
+
+  /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
@@ -299,57 +322,26 @@ int main(void)
   MX_USART1_UART_Init();
   MX_I2C1_Init();
   MX_USART3_UART_Init();
-  /* USER CODE BEGIN 2 */
-	MPU6050_Init(&hi2c1);
-	//calib_MPU6050(&hi2c1,10000,&Error_calib);
-	HAL_UART_Receive_DMA(&huart3,(uint8_t*)&Rx_data,1);
-	// start timer 4 init
-	MX_TIM4_Init();
 	
-	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);	
+
+	MPU6050_Init(&hi2c1);
+		//calib_MPU6050(&hi2c1,10000,&Error_calib);
+	HAL_UART_Receive_DMA(&huart3,(uint8_t*)&Rx_data,1);
+	MX_TIM4_Init();
+		HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);	
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 	//HAL_TIM_Base_Start_IT(&htim3);
 	HAL_TIM_Base_Start_IT(&htim4);
-	
-	
-	
+  /* USER CODE BEGIN WHILE */
   while (1)
   {
+    /* USER CODE END WHILE */
 
-//		time_1=HAL_GetTick();
-//		if((time_1-time_0)==1){
-//					//AngleNow++;
-//					sprintf(Tx_data, "%f", AngleNow);
-////		     HAL_UART_Transmit(&huart3,(uint8_t*)Tx_data,sizeof(Tx_data),100);
-//		
-//					time_0=time_1;
-//		}
-
+    /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
-#ifdef __GNUC__
-/* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
- set to 'Yes') calls __io_putchar() */
- #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-#else
- #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-#endif /* __GNUC__ */
 
-/**
- * @brief Retargets the C library printf function to the USART.
- * @param None
- * @retval None
- */
-PUTCHAR_PROTOTYPE 
-{
- /* Place your implementation of fputc here */
- /* e.g. write a character to the USART */
- HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 9);
-
-
- return ch;
-}
 /**
   * @brief System Clock Configuration
   * @retval None
