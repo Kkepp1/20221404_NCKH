@@ -30,8 +30,9 @@ float time_0 = 0.0;
 float time_1 = 0.0;
 float timeCurrent=0.0;
 // -----------------pid----------------------------
-#define TEST_MODE (1)
+#define TEST_MODE (0)
 #define NORMAL_MODE (1)
+#define TIMER  (1)
 #define SP_VALUE 180.5
 #define SP_UP			SP_VALUE+2
 #define SP_DOWN			SP_VALUE-2
@@ -52,17 +53,17 @@ float AddP=0;
 float SP = SP_VALUE;
 float Pitch=0;
 float Kp=350 ;//5.5 175
-float Ki=59;//1.5
+float Ki=55;//1.5
 float Kd =1;//2
 
 float ySP=0;
 float Yaw=0;
-float yKp=2;//5.5 175
+float yKp=10;//5.5 175
 float yKi=0;//1.5
 float yKd =0;//2
 
 
-float Error_calib=0.11;
+float Error_calib=0.1288;
 
 float pTerm, iTerm, dTerm, last_error, error;
 float ypTerm, yiTerm, ydTerm, ylast_error, yerror;
@@ -78,21 +79,7 @@ int Rx_index;
 char Rx_data1[100];
 char Rx_data2[100];
 int Rx_flag;
-/* USER CODE END Includes */
 
-/* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
-
-/* USER CODE END PTD */
-
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-/* USER CODE END PD */
-
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
@@ -102,10 +89,6 @@ TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart3;
 
-/* USER CODE BEGIN PV */
-
-/* USER CODE END PV */
-
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
@@ -113,14 +96,8 @@ static void MX_TIM2_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART3_UART_Init(void);
-/* USER CODE BEGIN PFP */
-
-/* USER CODE END PFP */
-
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
 //-------------------------------------------function---------------------
-void Split_String();
+#if TIMER
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance==htim4.Instance){
 	
@@ -135,28 +112,31 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 //			uT=0;
 		
 			if(Rx_data=='U'){
-			SP=SP_VALUE;
-			ySP=0;
+			SP=SP_UP;
+			ySP=ySP;
 //			AddT=0;
 //			AddP=0;
 		}else if(Rx_data=='D'){
-			SP=SP_VALUE;
-			if(Yaw>0){
-				ySP=180;
-			}else ySP=-180;
+			SP=SP_DOWN;
+			ySP=ySP;
+//			if(Yaw>0){
+//				ySP=180;
+//			}else ySP=-180;
 			
 //			AddT=0;
 //			AddP=0;
 			
 		}else if(Rx_data=='R'){
 			SP=SP_VALUE;
-			ySP=90;
+		//	ySP=90;
+			ySP+=0.1;
 
 //			AddT=-TURN_SPEED;
 //			AddP=TURN_SPEED;
 		}else if(Rx_data=='L'){
 			SP=SP_VALUE;
-			ySP=-90;
+			//ySP=-90;
+			ySP-=0.1;
 //			AddT=TURN_SPEED;
 //			AddP=-TURN_SPEED;
 		}else if(Rx_data=='u'){
@@ -263,13 +243,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 
 		}
 }
+#endif
 void Split_String(){
 			
 			strcpy(Rx_data2,Rx_data1);
-			str_Angle=strtok(Rx_data1,s);
-			str_Kp=strtok(NULL,",");
-			str_Ki=strtok(NULL,",");
-			str_Kd=strtok(NULL,",");
+			str_Angle=strtok(Rx_data2,s);
+			str_Kp=strtok(NULL,s);
+			str_Ki=strtok(NULL,s);
+			str_Kd=strtok(NULL,s);
 			if(strcmp(str_Angle,"pitch")==0){
 					Kp=strtof(str_Kp,NULL);
 					Ki=strtof(str_Ki,NULL);
@@ -279,6 +260,7 @@ void Split_String(){
 					yKi=strtof(str_Ki,NULL);
 					yKd=strtof(str_Kd,NULL);
 			}
+			
 					
 }
 #if TEST_MODE
@@ -287,16 +269,19 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 			
 			if (Rx_index == 0)
 				{
-					for(int i=0;i<100;i++)Rx_data1[i]=0;
+					for(int i=0;i<100;i++){
+					Rx_data1[i]=NULL;
+					//	Rx_data2[i]=0;
+					}
 				}
-			if(Rx_data!=13){
+			if(Rx_data!='r'){
 					Rx_data1[Rx_index++]=Rx_data;
 			}else{
+				//Rx_data1[Rx_index++]='\0';
 				Split_String();
 				Rx_index=0;
-					//Rx_index=0;	
 			}
-		HAL_UART_Receive_DMA(&huart3,(uint8_t*)&Rx_data,1);
+		HAL_UART_Receive_IT(&huart3,(uint8_t*)&Rx_data,1);
 	}
 }
 #endif
@@ -337,8 +322,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 	MPU6050_Init(&hi2c1);
 	HAL_UART_Receive_IT(&huart3,(uint8_t*)&Rx_data,1);
-	__HAL_UART_ENABLE_IT(&huart3,UART_IT_TC);
-	//calib_MPU6050(&hi2c1,10000,&Error_calib);
+	//calib_MPU6050(&hi2c1,20000,&Error_calib);
 		HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);	
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 		HAL_TIM_Base_Start_IT(&htim4);
